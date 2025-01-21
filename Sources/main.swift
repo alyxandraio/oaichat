@@ -126,7 +126,7 @@ final class oaichat: ParsableCommand {
             
             if input.starts(with: ":") {
                 if !strippedTerm {
-                    cprint("\(oaichat.up)\r\(oaichat.violet)\(oaichat.standardPrompt)\(oaichat.reset)\(input)\(oaichat.down)\r")
+                    cprint("\(oaichat.up)\r\(oaichat.violet)\(oaichat.standardPrompt)\(oaichat.cyan)\(input)\(oaichat.reset)\(oaichat.down)\r")
                 }
                 let input = input.dropFirst()
                 
@@ -196,7 +196,7 @@ final class oaichat: ParsableCommand {
                             if #available(macOS 13.0, *) {
                                 try json.write(to: URL(filePath: path), atomically: true, encoding: .utf8)
                             } else {
-                                cprint("\(oaichat.red)(system)> \(oaichat.reset)Available on macOS only.\n\n")
+                                cprint("\(oaichat.red)(system)> \(oaichat.reset)Available on macOS 13+ only.\n\n")
                                 break
                             }
                             cprint("\(oaichat.green)(system)> \(oaichat.reset)Saved conversation successfully.\n\n")
