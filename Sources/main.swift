@@ -170,7 +170,7 @@ final class oaichat: ParsableCommand {
             
             colon: if input.starts(with: ":") {
                 if !strippedTerm {
-                    cprint("\(oaichat.up)\r\(oaichat.violet)\(oaichat.standardPrompt)\(oaichat.cyan)\(input)\(oaichat.reset)\(oaichat.down)\r")
+                    cprint("\(oaichat.up)\r\(oaichat.violet)\(oaichat.standardPrompt)\(oaichat.violet)\(input)\(oaichat.reset)\(oaichat.down)\r")
                 }
                 let inputDeriv = input.dropFirst()
                 
