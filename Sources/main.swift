@@ -5,13 +5,21 @@
 //  Created by Alyxandra Ferrari on 1/1/2025.
 //
 
+// To anyone who may have the misfortune of reading this:
+// I know this isn't the most well-written program of
+// all-time. I'm planning on cleaning it up once I finish implementation
+// the full feature set I wish to include with the 1.0 release.
+// All that to say, you don't have to point out to me that
+// this sucks. I'm very aware and it's on my radar. Besides
+// that, thank you for showing interest in my project!
+
 import Foundation
 import ArgumentParser
 
 final class oaichat: ParsableCommand {
     
     @Option(help: "The OpenAI model with which to converse.") var model: String?
-    @Option(help: "The OpenAI API endpoint with which to communicate; appended to assumed static prefix of '\(ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil ? "" : oaichat.cyan)https://api.openai.com/v1/\(ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil ? "" : oaichat.reset)'.") var endpoint: String? // my deepest apologies to any poor soul with the misfortune of having to read this abomination
+    @Option(help: "The OpenAI API endpoint with which to communicate; appended to assumed static prefix of '\(ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil ? "" : oaichat.cyan)https://api.openai.com/v1/\(ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil ? "" : oaichat.reset)'.") var endpoint: String? // my deepest apologies to any poor soul with the misfortune of having to read this abomination, i'll have a parking space in hell right next to satan's for this one
     
     // `let` constant definitions of ANSI escape sequences for readability
     static let violet = "\u{001B}[38;5;183m"
@@ -33,7 +41,7 @@ final class oaichat: ParsableCommand {
     
     var messages: [GPTMessage] = []
     var apiKey: String?
-    var strippedTerm = ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil
+    var strippedTerm = ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil //
     
     var modelPrompt: String? {
         guard let model = model else { return nil }
@@ -62,7 +70,7 @@ final class oaichat: ParsableCommand {
             if strippedTerm {
                 cprint("<!> Missing or invalid OpenAI API key JSON data found at '\(configPath)'. <!>\n")
             } else {
-                cprint("\(oaichat.red)<!>\(oaichat.reset) Missing or invalid OpenAI API key JSON data found at \(oaichat.cyan)'\(configPath)'\(oaichat.reset). \(oaichat.red)<!>\(oaichat.reset)\n")
+                cprint("\(oaichat.red)<!>\(oaichat.reset) Missing or invalid OpenAI API key JSON data found at '\(oaichat.cyan)\(configPath)\(oaichat.reset)'. \(oaichat.red)<!>\(oaichat.reset)\n")
             }
             cprint("\n")
             cprint(error.localizedDescription)
@@ -72,40 +80,76 @@ final class oaichat: ParsableCommand {
         
         guard let apiKey = apiKey else { return }
         
-        cprint("The specified default will be fallen back upon if the form submission is empty.")
+        cprint("\n")
+        cprint("\(oaichat.violet)oaichat\(oaichat.reset)")
         cprint("\n\n")
         
         cprint("Compilation build configuration: ")
-        #if DEBUG
-        cprint("DEBUG")
-        #else
-        cprint("RELEASE")
-        #endif
+        if strippedTerm {
+            #if DEBUG
+            cprint("DEBUG")
+            #else
+            cprint("RELEASE")
+            #endif
+        } else {
+            #if DEBUG
+            cprint("\(oaichat.cyan)DEBUG\(oaichat.reset)")
+            #else
+            cprint("\(oaichat.cyan)RELEASE\(oaichat.reset)")
+            #endif
+        }
         cprint("\n")
         
-        cprint("OpenAI API Key: \(apiKey.prefix(3))...\(apiKey.suffix(4))")
-        cprint("\n")
-        cprint("Within Xcode terminal emulator: \(strippedTerm ? "yes" : "no")")
-        cprint("\n\n")
+        if strippedTerm {
+            cprint("OpenAI API Key: \(apiKey.prefix(3))...\(apiKey.suffix(4))")
+            cprint("\n")
+            cprint("Within Xcode terminal emulator: \(strippedTerm ? "yes" : "no")")
+            cprint("\n\n")
+        } else {
+            cprint("OpenAI API Key: \(oaichat.cyan)\(apiKey.prefix(3))...\(apiKey.suffix(4))\(oaichat.reset)")
+            cprint("\n")
+            cprint("Within Xcode terminal emulator: \(oaichat.cyan)\(strippedTerm ? "yes" : "no")\(oaichat.reset)")
+            cprint("\n\n")
+        }
         
         model: if model == nil {
-            cprint("OpenAI Model (default to 'gpt-4o-mini'): ")
-            guard let input = readLine() else {
-                model = "gpt-4o-mini"
-                cprint("\nCould not read stdin, defaulting to '\(model!)'.")
-                break model
+            if strippedTerm {
+                cprint("OpenAI Model (default to 'gpt-4o-mini'): ")
+                guard let input = readLine() else {
+                    model = "gpt-4o-mini"
+                    cprint("\nCould not read stdin, defaulting to '\(model!)'.")
+                    break model
+                }
+                model = input.isEmpty ? "gpt-4o-mini" : input
+            } else {
+                cprint("OpenAI Model (default to '\(oaichat.cyan)gpt-4o-mini\(oaichat.reset)'): ")
+                guard let input = readLine() else {
+                    model = "gpt-4o-mini"
+                    cprint("\nCould not read stdin, defaulting to '\(oaichat.cyan)\(model!)\(oaichat.reset)'.")
+                    break model
+                }
+                model = input.isEmpty ? "gpt-4o-mini" : input
             }
-            model = input.isEmpty ? "gpt-4o-mini" : input
         }
         
         endpoint: if endpoint == nil {
-            cprint("OpenAI API Endpoint (default to 'chat/completions'): ")
-            guard let input = readLine() else {
-                model = "https://api.openai.com/v1/chat/completions"
-                cprint("\nCould not read stdin, defaulting to 'chat/completions'.")
-                break endpoint
+            if strippedTerm {
+                cprint("OpenAI API Endpoint (default to 'chat/completions'): ")
+                guard let input = readLine() else {
+                    model = "https://api.openai.com/v1/chat/completions"
+                    cprint("\nCould not read stdin, defaulting to 'chat/completions'.")
+                    break endpoint
+                }
+                endpoint = "https://api.openai.com/v1/\(input.isEmpty ? "chat/completions" : input)"
+            } else {
+                cprint("OpenAI API Endpoint (default to '\(oaichat.cyan)chat/completions\(oaichat.reset)'): ")
+                guard let input = readLine() else {
+                    model = "https://api.openai.com/v1/chat/completions"
+                    cprint("\nCould not read stdin, defaulting to '\(oaichat.cyan)chat/completions\(oaichat.reset)'.")
+                    break endpoint
+                }
+                endpoint = "https://api.openai.com/v1/\(input.isEmpty ? "chat/completions" : input)"
             }
-            endpoint = "https://api.openai.com/v1/\(input.isEmpty ? "chat/completions" : input)"
         }
         
         guard var model = model else { return }
@@ -116,7 +160,7 @@ final class oaichat: ParsableCommand {
         while true {
             cprint(strippedTerm ? oaichat.standardPromptStripped : oaichat.standardPrompt)
             guard let stdinput = readLine() else { break }
-            let input = stdinput
+            var input = stdinput
                 .replacingOccurrences(of: "\"", with: "\\\"")
                 .replacingOccurrences(of: "\n", with: "\\n")
                 .replacingOccurrences(of: "[", with: "\\[")
@@ -124,15 +168,15 @@ final class oaichat: ParsableCommand {
                 .replacingOccurrences(of: "{", with: "\\{")
                 .replacingOccurrences(of: "}", with: "\\}")
             
-            if input.starts(with: ":") {
+            colon: if input.starts(with: ":") {
                 if !strippedTerm {
                     cprint("\(oaichat.up)\r\(oaichat.violet)\(oaichat.standardPrompt)\(oaichat.cyan)\(input)\(oaichat.reset)\(oaichat.down)\r")
                 }
-                let input = input.dropFirst()
+                let inputDeriv = input.dropFirst()
                 
-                let elements = input.split(separator: " ")
+                let elements = inputDeriv.split(separator: " ")
                 guard let first = elements.first else { break }
-                switch first {
+                switch first { // TODO: `strippedTerm` conditional breaks for `cprint` calls containing an ANSI sequence
                     case "q":
                         if strippedTerm {
                             cprint("(system)> \(oaichat.reset)Issued SIGTERM.\n\n")
@@ -187,7 +231,7 @@ final class oaichat: ParsableCommand {
                                 \(messagesJson)
                                 {
                                     "role": "user",
-                                    "content": "\(input)"
+                                    "content": "\(inputDeriv)"
                                 }
                             ]
                         }
@@ -235,6 +279,26 @@ final class oaichat: ParsableCommand {
                             _ = clsprint()
                             cprint("\r\n")
                             
+                        }
+                    case "file":
+                        guard elements.count > 1 else {
+                            cprint("\(oaichat.red)(system)> \(oaichat.reset)Usage: \(oaichat.cyan):file <path>\(oaichat.reset).\n\n")
+                            break
+                        }
+                        let path = String(elements[1])
+                        let file = URL(fileURLWithPath: path)
+                        do {
+                            let contents = try String(contentsOf: file, encoding: .utf8)
+                            input = contents
+                                .replacingOccurrences(of: "\"", with: "\\\"")
+                                .replacingOccurrences(of: "\n", with: "\\n")
+                                .replacingOccurrences(of: "[", with: "\\[")
+                                .replacingOccurrences(of: "]", with: "\\]")
+                                .replacingOccurrences(of: "{", with: "\\{")
+                                .replacingOccurrences(of: "}", with: "\\}")
+                            break colon
+                        } catch {
+                            cprint("\(oaichat.red)(system)> \(oaichat.reset)Error reading prompt from disk.\n\n")
                         }
                     default:
                         cprint("\(oaichat.red)(system)> \(oaichat.reset)Unknown sequence. Try \(oaichat.cyan):help\(oaichat.reset).\n\n")
