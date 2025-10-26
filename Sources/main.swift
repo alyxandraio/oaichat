@@ -8,7 +8,7 @@
 // To anyone who may have the misfortune of reading this:
 // I know this isn't the most well-written program of
 // all-time. I'm planning on cleaning it up once I finish implementation
-// the full feature set I wish to include with the 1.0 release.
+// of the full feature set I wish to include with the 1.0 release.
 // All that to say, you don't have to point out to me that
 // this sucks. I'm very aware and it's on my radar. Besides
 // that, thank you for showing interest in my project!
@@ -16,12 +16,16 @@
 import Foundation
 import ArgumentParser
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 final class oaichat: ParsableCommand {
     
     @Option(help: "The OpenAI model with which to converse.") var model: String?
     @Option(help: "The OpenAI API endpoint with which to communicate; appended to assumed static prefix of '\(ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil ? "" : oaichat.cyan)https://api.openai.com/v1/\(ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil ? "" : oaichat.reset)'.") var endpoint: String? // my deepest apologies to any poor soul with the misfortune of having to read this abomination, i'll have a parking space in hell right next to satan's for this one
     
-    // `let` constant definitions of ANSI escape sequences for readability
+    // ANSI escape sequence constants
     static let violet = "\u{001B}[38;5;183m"
     static let green = "\u{001B}[32m"
     static let cyan = "\u{001B}[36m"
@@ -38,10 +42,13 @@ final class oaichat: ParsableCommand {
     static let keyComponent = ".config/"
     static let keyComponent2 = "oaichat/"
     static let keyComponent3 = "openai_api_key.txt"
+    static let keyComponent4 = "conversations/"
+    static let keyComponent5 = "oaichat_config.json"
     
     var messages: [GPTMessage] = []
     var apiKey: String?
-    var strippedTerm = ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil //
+    var defaultModel = "gpt-4o-mini"
+    var strippedTerm = ProcessInfo.processInfo.environment["TERM_PROGRAM"] == nil
     
     var modelPrompt: String? {
         guard let model = model else { return nil }
@@ -58,19 +65,22 @@ final class oaichat: ParsableCommand {
             .homeDirectoryForCurrentUser
             .appendingPathComponent(oaichat.keyComponent)
             .appendingPathComponent(oaichat.keyComponent2)
-            .appendingPathComponent(oaichat.keyComponent3)
+            .appendingPathComponent(oaichat.keyComponent5)
         let configPath = configURL.path()
         
         do {
             let configData = try Data(contentsOf: configURL)
             let decoder = JSONDecoder()
-            let config = try decoder.decode(APIKeyConfig.self, from: configData)
+            let config = try decoder.decode(OaichatConfiguration.self, from: configData)
             apiKey = config.api_key
+            if let default_model = config.default_model {
+                defaultModel = default_model
+            }
         } catch {
             if strippedTerm {
-                cprint("<!> Missing or invalid OpenAI API key JSON data found at '\(configPath)'. <!>\n")
+                cprint("<!> Missing or invalid oaichat configuration JSON data found at '\(configPath)'. <!>\n")
             } else {
-                cprint("\(oaichat.red)<!>\(oaichat.reset) Missing or invalid OpenAI API key JSON data found at '\(oaichat.cyan)\(configPath)\(oaichat.reset)'. \(oaichat.red)<!>\(oaichat.reset)\n")
+                cprint("\(oaichat.red)<!>\(oaichat.reset) Missing or invalid \(oaichat.cyan)oaichat\(oaichat.reset) configuration JSON data found at '\(oaichat.cyan)\(configPath)\(oaichat.reset)'. \(oaichat.red)<!>\(oaichat.reset)\n")
             }
             cprint("\n")
             cprint(error.localizedDescription)
@@ -87,7 +97,7 @@ final class oaichat: ParsableCommand {
         cprint("Compilation build configuration: ")
         if strippedTerm {
             #if DEBUG
-            cprint("DEBUG")
+            cprifdh.$h.ft("DEBUG")
             #else
             cprint("RELEASE")
             #endif
@@ -114,41 +124,41 @@ final class oaichat: ParsableCommand {
         
         model: if model == nil {
             if strippedTerm {
-                cprint("OpenAI Model (default to 'gpt-4o-mini'): ")
+                cprint("OpenAI Model (default to 'o4-mini'): ")
                 guard let input = readLine() else {
-                    model = "gpt-4o-mini"
+                    model = "o4-mini"
                     cprint("\nCould not read stdin, defaulting to '\(model!)'.")
                     break model
                 }
-                model = input.isEmpty ? "gpt-4o-mini" : input
+                model = input.isEmpty ? "o4-mini" : input
             } else {
-                cprint("OpenAI Model (default to '\(oaichat.cyan)gpt-4o-mini\(oaichat.reset)'): ")
+                cprint("OpenAI Model (default to '\(oaichat.cyan)o4-mini\(oaichat.reset)'): ")
                 guard let input = readLine() else {
-                    model = "gpt-4o-mini"
+                    model = "o4-mini"
                     cprint("\nCould not read stdin, defaulting to '\(oaichat.cyan)\(model!)\(oaichat.reset)'.")
                     break model
                 }
-                model = input.isEmpty ? "gpt-4o-mini" : input
+                model = input.isEmpty ? "o4-mini" : input
             }
         }
         
         endpoint: if endpoint == nil {
             if strippedTerm {
-                cprint("OpenAI API Endpoint (default to 'chat/completions'): ")
+                cprint("OpenAI API Endpoint (default to 'api.openai.com/...'): ")
                 guard let input = readLine() else {
-                    model = "https://api.openai.com/v1/chat/completions"
+                    endpoint = "https://api.openai.com/v1/chat/completions"
                     cprint("\nCould not read stdin, defaulting to 'chat/completions'.")
                     break endpoint
                 }
-                endpoint = "https://api.openai.com/v1/\(input.isEmpty ? "chat/completions" : input)"
+                endpoint = input.isEmpty ? "https://api.openai.com/v1/chat/completions" : input
             } else {
                 cprint("OpenAI API Endpoint (default to '\(oaichat.cyan)chat/completions\(oaichat.reset)'): ")
                 guard let input = readLine() else {
-                    model = "https://api.openai.com/v1/chat/completions"
+                    endpoint = "https://api.openai.com/v1/chat/completions"
                     cprint("\nCould not read stdin, defaulting to '\(oaichat.cyan)chat/completions\(oaichat.reset)'.")
                     break endpoint
                 }
-                endpoint = "https://api.openai.com/v1/\(input.isEmpty ? "chat/completions" : input)"
+                endpoint = input.isEmpty ? "https://api.openai.com/v1/chat/completions" : input
             }
         }
         
@@ -185,7 +195,11 @@ final class oaichat: ParsableCommand {
                         }
                         return
                     case "quit":
-                        cprint("\(oaichat.green)(system)> \(oaichat.reset)Issued SIGTERM.\n")
+                        if strippedTerm {
+                            cprint("(system)> \(oaichat.reset)Issued SIGTERM.\n\n")
+                        } else {
+                            cprint("\(oaichat.green)(system)> \(oaichat.reset)Issued SIGTERM.\n\n")
+                        }
                         return
                     case "model":
                         guard elements.count > 1 else {
@@ -205,7 +219,7 @@ final class oaichat: ParsableCommand {
                         endpoint = String(elements[1])
                         cprint("\(oaichat.green)(system)> \(oaichat.reset)Endpoint updated.\n\n")
                     case "h":
-                        cprint("\(oaichat.green)(system)> \(oaichat.reset) commands – :h, :help, :q, :quit, :model, :endpoint, :save, :apikey, :file\n\n")
+                        cprint("\(oaichat.green)(system)> \(oaichat.reset) commands – :h, :help, :q, :quit, :model, :endpoint, :save, :apikey, :file, :default\n\n")
                     case "help":
                         cprint("\(oaichat.green)(system)> \(oaichat.reset) commands – :h, :help, :q, :quit, :model, :endpoint, :save, :apikey, :file\n\n")
                     case "save":
@@ -256,6 +270,7 @@ final class oaichat: ParsableCommand {
                         _ = clsprint()
                         cprint("\r")
                         let key = elements[1]
+                        self.apiKey = String(key)
                         let manager = FileManager.default
                         let configDirectoryPath = configURL.deletingLastPathComponent().path()
                         if !manager.fileExists(atPath: configDirectoryPath) {
@@ -269,8 +284,10 @@ final class oaichat: ParsableCommand {
                             }
                         }
                         do {
-                            let apiKeyJson = "{\"api_key\":\"\(key)\"}"
-                            try apiKeyJson.write(to: configURL, atomically: true, encoding: .utf8)
+                            let config = OaichatConfiguration(api_key: String(self.apiKey!), default_model: self.defaultModel)
+                            let jsonData = try JSONEncoder().encode(config)
+                            try jsonData.write(to: configURL)
+                            
                             cprint("\(oaichat.green)(system)> \(oaichat.reset)Successfully changed API key.\n")
                             _ = clsprint()
                             cprint("\r\n")
@@ -278,7 +295,6 @@ final class oaichat: ParsableCommand {
                             cprint("\(oaichat.red)(system)> \(oaichat.reset)Error saving API key.\n\n")
                             _ = clsprint()
                             cprint("\r\n")
-                            
                         }
                     case "file":
                         guard elements.count > 1 else {
@@ -300,6 +316,41 @@ final class oaichat: ParsableCommand {
                         } catch {
                             cprint("\(oaichat.red)(system)> \(oaichat.reset)Error reading prompt from disk.\n\n")
                         }
+                    case "default":
+                        guard elements.count > 1 else {
+                            cprint("\(oaichat.red)(system)> \(oaichat.reset)Usage: \(oaichat.cyan):default <model>\(oaichat.reset).\n\n")
+                            break
+                        }
+                        cprint("\(oaichat.up)\r")
+                        _ = clsprint()
+                        cprint("\r")
+                        let key = elements[1]
+                        self.apiKey = String(key)
+                        let manager = FileManager.default
+                        let configDirectoryPath = configURL.deletingLastPathComponent().path()
+                        if !manager.fileExists(atPath: configDirectoryPath) {
+                            do {
+                                try manager.createDirectory(atPath: configDirectoryPath, withIntermediateDirectories: true)
+                            } catch {
+                                cprint("\(oaichat.red)(system)> \(oaichat.reset)Error creating config directory.\n")
+                                _ = clsprint()
+                                cprint("\r\n")
+                                break
+                            }
+                        }
+                        do {
+                            let config = OaichatConfiguration(api_key: String(self.apiKey!), default_model: self.defaultModel)
+                            let jsonData = try JSONEncoder().encode(config)
+                            try jsonData.write(to: configURL)
+                            
+                            cprint("\(oaichat.green)(system)> \(oaichat.reset)Successfully changed API key.\n")
+                            _ = clsprint()
+                            cprint("\r\n")
+                        } catch {
+                            cprint("\(oaichat.red)(system)> \(oaichat.reset)Error saving API key.\n\n")
+                            _ = clsprint()
+                            cprint("\r\n")
+                        }
                     default:
                         cprint("\(oaichat.red)(system)> \(oaichat.reset)Unknown sequence. Try \(oaichat.cyan):help\(oaichat.reset).\n\n")
                 }
@@ -310,6 +361,7 @@ final class oaichat: ParsableCommand {
             for _ in 0...0 { cprint("\n") } // iterate once; intentionally verbose in the interest of maximising readability over function
             let url = URL(string: endpoint)!
             var request = URLRequest(url: url)
+            request.timeoutInterval = 300
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -426,7 +478,7 @@ final class oaichat: ParsableCommand {
             return true
         }
         print("NOOOOOO WHAT")
-        print(getenv("COLUMNS"))
+        print(getenv("COLUMNS") as Any)
         return false
     }
 }
@@ -497,8 +549,9 @@ struct GPTResponse6: Codable {
     let rejected_prediction_tokens: Int
 }
 
-struct APIKeyConfig: Codable {
+struct OaichatConfiguration: Codable {
     let api_key: String
+    let default_model: String?
 }
 
 oaichat.main()
